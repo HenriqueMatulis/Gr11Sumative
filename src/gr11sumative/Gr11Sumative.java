@@ -27,8 +27,6 @@ public class Gr11Sumative extends PApplet {
 
 	int counter;
 
-	int jumpshadow;
-
 	int rotatepointer;
 
 	double score;
@@ -54,8 +52,7 @@ public class Gr11Sumative extends PApplet {
 		menu = 3;
 		shoot_timer = 40;
 		rotatepointer = 0;
-		jumpshadow = 0;
-		player = new Player(new Vector(width / 2, height / 2));
+		player = new Player(new Vector(width / 2.0, height / 2.0));
 		counter = 0;
 
 		background(255);
@@ -73,35 +70,79 @@ public class Gr11Sumative extends PApplet {
 			score = score + .02;
 			shoot_timer--;
 
-			collision_wall();
-
-			friction();
 			background(0);
 			noFill();
 
-			if (counter > 0)
-				counter--;
 			jump();
 
-			movement_p();
+			movementkeys();
+			friction();
+			addTick(player);
+			collision_wall(player);
+			for (int i = 0; i < bullets.size(); i++) {
+				addTick(bullets.get(i));
+				collision_wall(bullets.get(i));
+				if(bullets.get(i).grace>0){
+					bullets.get(i).grace--;
+				}
+			}
+			for (int i = 0; i < enemies.size(); i++) {
+				addTick(enemies.get(i));
+				collision_wall(enemies.get(i));
+				if(enemies.get(i).grace>0){
+					enemies.get(i).grace--;
+				}
+			}
 
 			if (mouse && shoot_timer < 0) {
-				bullet_nw();
+				shootBullet();
 				shoot_timer = 4;
 			}
 
-
 			if (spawnrate < 40) {
-				spawnrate =  score;
+				spawnrate = score;
 			}
 
 			if (round(random((float) (40 - spawnrate))) == 0) {
-				enemy_nw();
+				createEnemy();
+			}
+			if (!player.jumping) {
+				for (int i = 0; i < bullets.size(); i++) {
+					if (collision(bullets.get(i), player)) {
+						menu = 2;
+					}
+				}
+				for (int i = 0; i < enemies.size(); i++) {
+					if (collision(enemies.get(i), player)) {
+						menu = 2;
+					}
+				}
+			}
+
+			for (Entity ent : bullets) {
+				fill(255);
+				ellipse((float) (ent.location.x), (float) (ent.location.y), (float) (ent.size), (float) (ent.size));
+			}
+			for (Entity ent : enemies) {
+				fill(colorwheel, 0, 0);
+				ellipse((float) (ent.location.x), (float) (ent.location.y), (float) (ent.size), (float) (ent.size));
+			}
+			for(int i = 0; i < bullets.size(); i++){
+				for(int z=0; z<enemies.size(); z++){
+					if(collision(enemies.get(z), bullets.get(i))){
+						enemies.remove(z);
+						bullets.remove(i);
+						//z--;
+						//i--;
+					}
+				}
 			}
 
 			fill(255);
-			rect((float)(player.location.x), (float)(player.location.y), (float)(player.size + player.height), (float)(player.size + player.height));
-
+			ellipse((float) (player.location.x), (float) (player.location.y), (float) (player.size + player.height), (float) (player.size + player.height));
+			score *= 100;
+			score = Math.round(score);
+			score /= 100;
 			textFont(font_t1, 52);
 			fill(0);
 			text("" + score, 250, 200);
@@ -115,14 +156,9 @@ public class Gr11Sumative extends PApplet {
 
 		else if (menu == 2) {
 
-			try {
-
-				if (highscorecheck) {
-					highscore = highscore(score);
-					highscorecheck = false;
-				}
-			} catch (IOException e) {
-				System.err.println("Caught IOException: " + e.getMessage());
+			if (highscorecheck) {
+				highscore = highscore(score);
+				highscorecheck = false;
 			}
 
 			background(255);
@@ -144,8 +180,6 @@ public class Gr11Sumative extends PApplet {
 				enemies.clear();
 				player = new Player(new Vector(width / 2, height / 2));
 				shoot_timer = 40;
-				jumpshadow = 1;
-				space = false;
 				spawnrate = 0;
 
 				menu = 1;
@@ -210,60 +244,61 @@ public class Gr11Sumative extends PApplet {
 	}
 
 	void jump() {
-
-		if (counter <= 0 && space == true) {
-			fill(0);
-			if (jumpshadow == 30) {
-				player.jumpdirection = true;
-			} else if (jumpshadow == -1) {
-				player.jumpdirection = false;
-				space = false;
-				counter = 30;
+		if (player.jumping == true) {
+			if (player.height >= 30) {
+				player.jumpingup = false;
+			} else if (player.height <= -1) {
+				player.jumpingup = false;
+				player.height = 1;
+				player.jumping = false;
 			}
-			if (player.jumpdirection) {
-				jumpshadow--;
-				player.size--;
+			if (!player.jumpingup) {
+				player.height--;
 			} else {
-				jumpshadow++;
-				player.size++;
+				player.height++;
 			}
-		} else {
-			space = false;
+		}
+
+		if (space && !player.jumping) {
+			player.jumping = true;
+			player.jumpingup=true;
 		}
 	}
 
-	void movement_p() {
+	void movementkeys() {
 
-		if (left == true && space == false && Vector.getMagnitude(player.velocity) <= 300) {
+		if (left == true && player.jumping == false && Vector.getMagnitude(player.velocity) <= 300) {
 			player.velocity.x = player.velocity.x - 0.8;
 		}
-		if (right == true && space == false && Vector.getMagnitude(player.velocity) <= 300) {
+		if (right == true && player.jumping == false && Vector.getMagnitude(player.velocity) <= 300) {
 			player.velocity.x = player.velocity.x + 0.8;
 		}
-		if (down == true && space == false && Vector.getMagnitude(player.velocity) <= 300) {
+		if (down == true && player.jumping == false && Vector.getMagnitude(player.velocity) <= 300) {
 			player.velocity.y = player.velocity.y + 0.8;
 		}
-		if (up == true && space == false && Vector.getMagnitude(player.velocity) <= 300) {
+		if (up == true && player.jumping == false && Vector.getMagnitude(player.velocity) <= 300) {
 			player.velocity.y = player.velocity.y - 0.8;
 		}
-
-		player.location.y = player.location.y + player.velocity.y;
-		player.location.x = player.location.x + player.velocity.x;
 	}
 
-	void bullet_nw() {
-		Vector bdirection = new Vector(mouseX-player.location.x, mouseY - player.location.y);
+	void addTick(Entity ent) {
+		ent.location = Vector.vectorAddition(ent.location, ent.velocity);
+	}
+
+	void shootBullet() {
+		Vector bdirection = new Vector(mouseX - player.location.x, mouseY - player.location.y);
 		Vector.normalizeVector(bdirection);
-		Vector.scalarProduct(bdirection, 2);
+		bdirection = Vector.scalarProduct(bdirection, 15);
 		bullets.add(new Entity(player.location, bdirection, 5));
+		bullets.get(bullets.size()-1).grace=3;
 	}
 
-	void enemy_nw() {
+	void createEnemy() {
 
 		int wall;
 		int location;
 		Vector temp;
-		wall = (int)(Math.random()*4);
+		wall = (int) (Math.random() * 4);
 
 		if (wall == 0) {
 			location = round(random(0, 800));
@@ -278,61 +313,12 @@ public class Gr11Sumative extends PApplet {
 			location = round(random(0, 1000));
 			temp = new Vector(location, 800);
 		}
-		temp2 = new Vector((player.location.x - temp.x) / 200, (player.locations.y - temp.y) / 200);
+		Vector enemyVelocity = new Vector((player.location.x - temp.x), (player.location.y - temp.y));
+		Vector.normalizeVector(enemyVelocity);
+		enemyVelocity=Vector.scalarProduct(enemyVelocity, 5);
+		enemies.add(new Entity(temp, enemyVelocity));
+		enemies.get(enemies.size()-1).grace=30;
 
-		enemies.add(new Entity);
-		momentum_e.add(temp2);
-		grace_period_e.add(30);
-	}
-
-	void printarray(ArrayList arrayloc, ArrayList arraymom, ArrayList grace, int form) {
-		PVector enemy;
-		boolean deletebullet;
-
-		for (int i = 0; i < arrayloc.size(); i++) {
-			deletebullet = true;
-
-			temp = (PVector) arrayloc.get(i);
-			temp2 = (PVector) arraymom.get(i);
-			temp3 = (Integer) grace.get(i);
-
-			if (form == 1) {
-				stroke(255);
-				fill(0, 0, 0);
-				ellipse(temp.x, temp.y, 5, 5);
-				stroke(0);
-				for (int x = 0; x < enemies.size(); x++) {
-					enemy = (PVector) enemies.get(x);
-					if (abs(enemy.x - temp.x) < 40 && abs(enemy.y - temp.y) < 40) {
-						enemies.remove(x);
-						momentum_e.remove(x);
-						grace_period_e.remove(x);
-						deletebullet = false;
-					}
-				}
-			}
-
-			else if (form == 2) {
-				fill(colorwheel, 0, 0);
-				ellipse(temp.x, temp.y, 40, 40);
-			}
-
-			if (temp3 < 0) {
-				temp2 = collision(temp, temp2, form);
-			} else {
-				temp3--;
-			}
-			if (deletebullet) {
-				temp.x = temp.x + temp2.x;
-				temp.y = temp.y + temp2.y;
-				arrayloc.set(i, temp);
-				grace.set(i, temp3);
-			} else {
-				arrayloc.remove(i);
-				arraymom.remove(i);
-				grace.remove(i);
-			}
-		}
 	}
 
 	void mousepointer(int colour) {
@@ -355,58 +341,43 @@ public class Gr11Sumative extends PApplet {
 		popMatrix();
 	}
 
-	void collision_wall() {
-		if (player.location.x > 950) {
-			player.velocity.x = player.velocity.x * (-1) - 16;
+	void collision_wall(Entity ent1) {
+		if(ent1.grace > 0) return;
+		
+		if (ent1.location.x> width) {
+			ent1.velocity.x = ent1.velocity.x * (-1);
 		}
-		if (player.location.y > 750) {
-			player.velocity.y = player.velocity.y * (-1) - 16;
+		if (ent1.location.y > height) {
+			ent1.velocity.y = ent1.velocity.y * (-1);
 		}
-		if (player.location.x < 1) {
-			player.velocity.x = player.velocity.x * (-1) + 16;
+		if (ent1.location.x < 1) {
+			ent1.velocity.x = ent1.velocity.x * (-1);
 		}
-		if (player.location.y < 1) {
-			player.velocity.y = player.velocity.y * (-1) + 16;
+		if (ent1.location.y < 1) {
+			ent1.velocity.y = ent1.velocity.y * (-1);
 		}
 	}
 
-	PVector collision(Entity ent1, Entity ent2) {
-
-		if (location.x > 1000) {
-			momentum.x = momentum.x * (-1);
-		}
-		if (location.y > 800) {
-			momentum.y = momentum.y * (-1);
-		}
-		if (location.x < 1) {
-			momentum.x = momentum.x * (-1);
-		}
-		if (location.y < 1) {
-			momentum.y = momentum.y * (-1);
-		}
-		if (form == 1) {
-			if (location.x < location_p.x + psize && location.x > location_p.x && location.y < location_p.y + psize && location.y > location_p.y && jumpshadow < 5) {
-				menu = 2;
-			}
-		} else {
-			if (location.x - 20 < location_p.x + psize && location.x + 20 > location_p.x && location.y - 20 < location_p.y + psize && location.y + 20 > location_p.y
-					&& jumpshadow < 5)
-				menu = 2;
+	boolean collision(Entity ent1, Entity ent2) {
+		if(ent1.grace>0) return false;
+		if(ent2.grace>0) return false;
+		Vector distance = Vector.vectorSubtraction(ent1.location, ent2.location);
+		if (Vector.getMagnitude(distance) <= ent1.size / 2.0 + ent2.size / 2.0) {
+			return true; // entities collide
+			// menu = 2;
 		}
 
-		return momentum;
+		return false;
 	}
 
 	void friction() {
-		if (player.velocity.x < 0 && space == false) {
-			player.velocity.x = player.velocity.x + 4;
-		} else if (player.velocity.x > 0 && space == false) {
-			player.velocity.x = player.velocity.x - 4;
-		}
-		if (player.velocity.y < 0 && space == false) {
-			player.velocity.y = player.velocity.y + 4;
-		} else if (player.velocity.y > 0 && space == false) {
-			player.velocity.y = player.velocity.y - 4;
+		if (player.jumping == false && Vector.getMagnitude(player.velocity) != 0) {
+			for (int i = 0; i < 3; i++) {
+				Vector friction = new Vector(-player.velocity.x, -player.velocity.y);
+				Vector.normalizeVector(friction);
+				friction = Vector.scalarProduct(friction, 0.1);
+				player.velocity = Vector.vectorAddition(friction, player.velocity);
+			}
 		}
 	}
 
@@ -463,46 +434,35 @@ public class Gr11Sumative extends PApplet {
 		if (key == 'W') {
 			up = false;
 		}
+
+		if (key == ' ') {
+			space = false;
+		}
 	}
 
-	double highscore(double currentscore) throws IOException {
+	double highscore(double currentscore) {
 		String currentline;
-		int lengthname;
 		double currenthighscore;
-		int x;
-		boolean whichscore;
-
-		infile = createReader("highscoreshenry.txt");
-
-		currentline = infile.readLine();
 		try {
+			infile = createReader("highscoreshenry.txt");
+			currentline = infile.readLine();
 			currenthighscore = Double.parseDouble(currentline);
+			infile.close();
 		} catch (Exception e) {
 			currenthighscore = -1;
 		}
 
-		infile.close();
-
-		output = createWriter("highscoreshenry.txt");
-		if (currenthighscore < currentscore) {
-			output.println(currentscore);
-			whichscore = true;
-		} else {
-			output.println(currenthighscore);
-			whichscore = false;
-		}
-
-		output.flush();
-		output.close();
-		if (whichscore) {
-			return currentscore;
-		} else {
+		if (!(currenthighscore < currentscore)) {
 			return currenthighscore;
 		}
+		output = createWriter("highscoreshenry.txt");
+		output.println(currentscore);
+		output.flush();
+		output.close();
+		return currentscore;
 	}
 
 	void quit() throws IOException {
-
 		exit();
 	}
 }

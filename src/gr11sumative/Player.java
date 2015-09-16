@@ -1,11 +1,12 @@
 package gr11sumative;
 
 public class Player extends Entity{
-	boolean jumpdirection;
+	boolean jumpingup;
+	boolean jumping;
 	int height;
 	public Player(Vector loc) {
 		super(loc, 50);
-		jumpdirection=false;
+		jumpingup=false;
 		height = 0;
 	}
 }
